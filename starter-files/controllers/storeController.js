@@ -3,6 +3,7 @@ const Store = mongoose.model('Store')
 const multer = require('multer')
 const jimp = require('jimp')
 const uuid = require('uuid')
+const User = mongoose.model('User')
 
 const multerOptions = {
   storage: multer.memoryStorage(),
@@ -45,6 +46,7 @@ exports.resize = async (req, res, next) => {
 }
 
 exports.createStore = async (req, res) => {
+  req.body.author = req.user._id // Get the id of the currently logged in user and assign it to author
   const store = await (new Store(req.body)).save()
   req.flash('success', `Successfully created ${store.name}. Care to leave a review?`)
   res.redirect(`/store/${store.slug}`)
@@ -58,18 +60,24 @@ exports.getStores = async (req, res) => {
 
 exports.getStoreBySlug = async (req, res, next) => {
   // Query the db
-  const store = await Store.findOne({ slug: req.params.slug })
+  const store = await Store.findOne({ slug: req.params.slug }).populate('author')
   if (!store) return next()
   res.render('store', { title: store.name, store })
+}
+
+const confirmOwner = (store, user) => {
+  if (!store.author.equals(user._id)) {
+    throw Error('You must own a store to edit it')
+  }
 }
 
 exports.editStore = async (req, res) => {
   // 1. Find the store given id
   const store = await Store.findOne({ _id: req.params.id })
-  res.render('editStore', { title: `Edit ${store.name}`, store })
   // 2. Make sure they are the owner
-  // TODO
+  confirmOwner(store, req.user)
   // 3. Render out the edit form so the user can update their store
+  res.render('editStore', { title: `Edit ${store.name}`, store })
 }
 
 exports.updateStore = async (req, res) => {
@@ -93,4 +101,53 @@ exports.getStoresByTag = async(req, res) => {
   // Await both promises at the same time
   const [tags, stores] = await Promise.all([tagsPromise, storesPromise])
   res.render('tags', { tags, stores, title: 'Tags', tag })
+}
+
+exports.searchStores = async (req, res) => {
+  const stores = await Store.find({
+    $text: {
+      $search: req.query.q
+    }
+  }, {
+    score: { $meta: 'textScore' }
+  })
+  .sort({
+    score: { $meta: 'textScore' }
+  })
+  .limit(5)
+  res.json(stores)
+}
+
+exports.mapStores = async(req, res) => {
+  const coordinates = [req.query.lng, req.query.lat].map(parseFloat)
+  const q = {
+    location: {
+      $near: {
+        $geometry: {
+          type: 'Point',
+          coordinates
+        }, 
+        $maxDistance: 10000 // 10km
+      }
+    }
+
+  }
+  const stores = await Store.find(q).select('slug name description location').limit(10)
+  res.json(stores)
+}
+
+exports.mapPage = (req, res) => {
+  res.render('map', { title: 'Map' })
+}
+
+exports.heartStore = async (req, res) => {
+  const hearts = req.user.hearts.map(obj => obj.toString())
+  // Create var that checks if the current store is already in the hearts array for the user
+  const operator = hearts.includes(req.params.id) ? '$pull' : '$addToSet'
+  const user = await User
+    .findByIdAndUpdate(req.user._id,
+    { [operator]: { hearts: req.params.id } },
+    { new: true }
+  )
+  res.json(user)
 }
