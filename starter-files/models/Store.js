@@ -38,6 +38,10 @@ const storeSchema = new mongoose.Schema({
     ref: 'User',
     required: 'You must supply an author'
   }
+}, {
+  // Populate virtual fields by default
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 })
 
 // Define indexes
@@ -73,5 +77,36 @@ storeSchema.statics.getTagsList = function () {
     { $sort: { count: -1 } }
   ])
 }
+
+storeSchema.statics.getTopStores = function () {
+  return this.aggregate([
+    // Lookup stores and populate their reviews
+    { $lookup: { from: 'reviews', localField: '_id', foreignField: 'store', as: 'reviews' } },
+    // Filter for items that 2 or more reviews
+    { $match: { 'reviews.1': { $exists: true } } },
+    // Add the average reviews field
+    { $project: {
+      // This is because of MongoDB 3.2
+      photo: '$$ROOT.photo',
+      name: '$$ROOT.name',
+      reviews: '$$ROOT.reviews',
+      slug: '$$ROOT.slug',
+      averageRating: { $avg: '$reviews.rating' }
+    }},
+    // Sort it by our new field, highest first
+    { $sort: {averageRating: -1 }},
+    // Limit it to 10
+    { $limit: 10 }
+  ])
+}
+
+
+// Find reviews where the stores _id prop === reviews store property
+// NOTE: By default, virutal fields don't show unless they are called - see they've been added to the schema above
+storeSchema.virtual('reviews', {
+  ref: 'Review', // What model to link?
+  localField: '_id', // Which field on the store?
+  foreignField: 'store' // Which field on the review?
+})
 
 module.exports = mongoose.model('Store', storeSchema)

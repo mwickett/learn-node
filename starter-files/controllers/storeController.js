@@ -53,14 +53,20 @@ exports.createStore = async (req, res) => {
 }
 
 exports.getStores = async (req, res) => {
+  const page = req.params.page || 1
+  const limit = 4
+  const skip = (page * limit) - limit
   // 1. Query db for stores
-  const stores = await Store.find()
+  const stores = await Store
+    .find()
+    .skip(skip)
+    .limit(limit)
   res.render('stores', { title: 'Stores', stores })
 }
 
 exports.getStoreBySlug = async (req, res, next) => {
   // Query the db
-  const store = await Store.findOne({ slug: req.params.slug }).populate('author')
+  const store = await Store.findOne({ slug: req.params.slug }).populate('author reviews')
   if (!store) return next()
   res.render('store', { title: store.name, store })
 }
@@ -150,4 +156,17 @@ exports.heartStore = async (req, res) => {
     { new: true }
   )
   res.json(user)
+}
+
+exports.hearts = async (req, res) => {
+  const hearts = req.user.hearts
+  const stores = await Store.find({
+    _id: { $in: hearts }
+  })
+  res.render('stores', { title: 'Stores you like', stores })
+}
+
+exports.getTopStores = async (req, res) => {
+  const stores = await Store.getTopStores()
+  res.render('topStores', { stores, title: 'Top Stores!' })
 }
