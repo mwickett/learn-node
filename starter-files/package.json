@@ -5,10 +5,16 @@
   "engines": {
     "node": ">= 7.6.0"
   },
+  "now": {
+    "dotenv": "variables.env.now",
+    "engines": {
+      "node": "7.9.0"
+    }
+  },
   "scripts": {
     "start": "node ./start.js",
     "watch": "nodemon ./start.js --ignore public/",
-    "prod": "concurrently \"npm run watch\" \"npm run assets\" --names \"💻,📦\" --prefix name",
+    "dev": "concurrently \"npm run watch\" \"npm run assets\" --names \"💻,📦\" --prefix name",
     "assets": "webpack -w --display-max-modules 0",
     "sample": "node ./data/load-sample-data.js",
     "blowitallaway": "node ./data/load-sample-data.js --delete",
@@ -18,6 +24,7 @@
   "dependencies": {
     "axios": "0.15.3",
     "body-parser": "1.17.1",
+    "compression": "^1.6.2",
     "connect-flash": "0.1.1",
     "connect-mongo": "1.3.2",
     "cookie-parser": "1.4.3",
@@ -59,6 +66,7 @@
     "nodemon": "1.11.0",
     "postcss-loader": "1.3.3",
     "sass-loader": "6.0.3",
-    "webpack": "2.2.1"
+    "webpack": "2.2.1",
+    "workbox-webpack-plugin": "^1.0.0"
   }
 }

@@ -12,6 +12,7 @@ const expressValidator = require('express-validator');
 const routes = require('./routes/index');
 const helpers = require('./helpers');
 const errorHandlers = require('./handlers/errorHandlers');
+const compression = require('compression')
 require('./handlers/passport')
 
 // create our Express app
@@ -23,6 +24,9 @@ app.set('view engine', 'pug'); // we use the engine pug, mustache or EJS work gr
 
 // serves up static files from the public folder. Anything in public/ will just be served up as the file it is
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Implement compression
+app.use(compression())
 
 // Takes the raw requests and turns them into usable properties on req.body
 app.use(bodyParser.json());
